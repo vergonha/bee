@@ -1,3 +1,4 @@
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -25,8 +26,19 @@ class ImdbScraping():
         # Eu só quero o rating. Ex: Por padrão, essa classe tem "7.7/10". Quero só o "7.7"
         rating = soup.find(attrs={"data-testid": "hero-rating-bar__aggregate-rating__score"}).get_text(strip=True).split("/")[0]
 
+        # Esqueci de botar o diretor no banco de dados
+        # Mas tá bom, vai? Fica aí.
         directors = [_.get_text() for _ in soup.find('li', {'data-testid': 'title-pc-principal-credit'}).find('div').find_all("li")]
 
+        release_date = datetime.strptime(
+            soup.find('li', {'data-testid': 'title-details-releasedate'}).find('a', class_='ipc-metadata-list-item__list-content-item').get_text(strip=True).split(' (')[0], 
+            '%B %d, %Y'
+        ).strftime('%Y-%m-%d')
+
+
+        date_tag = soup.find('a', class_='ipc-metadata-list-item__list-content-item')
+
         return {
-            "description": description, "title": title, "cover": cover, "rating": rating, "directors": directors 
+            "description": description, "name": title, "cover": cover, "rating": rating, "release_date": release_date
         }
+    

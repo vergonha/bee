@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>🐝🐝</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: {
+            'spin': 'spin 1s linear infinite',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="min-h-screen bg-black text-white">
+  <div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+      <div class="text-center space-y-4 mb-8">
+        <h1 class="text-4xl font-bold tracking-tight">🐝🐝</h1>
+
+        <!-- <img src="https://64.media.tumblr.com/9d54b7a172aa611f3827000de09281ff/tumblr_o5fcyjcVUt1rw37c6o1_540.gif"
+             class="mx-auto rounded-lg p-2 w-38"> -->
+      </div>
+
+      <form id="searchForm"
+            class="max-w-2xl mx-auto">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"
+               fill="none"
+               stroke="currentColor"
+               viewBox="0 0 24 24">
+            <circle cx="11"
+                    cy="11"
+                    r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input type="text"
+                 id="searchInput"
+                 placeholder="Título da obra (filme, por favor)"
+                 class="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/40 focus:border-white/40 focus:ring-2 focus:ring-white/20 focus:outline-none" />
+          <button type="button"
+                  id="clearButton"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 hidden">
+            <svg class="h-4 w-4"
+                 fill="none"
+                 stroke="currentColor"
+                 viewBox="0 0 24 24">
+              <line x1="18"
+                    y1="6"
+                    x2="6"
+                    y2="18"></line>
+              <line x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div id="searchResults"
+         class="max-w-2xl mx-auto mb-8 hidden">
+      <div class="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+        <div class="p-4 border-b border-white/10">
+          <h3 class="font-semibold text-lg">Search Results</h3>
+        </div>
+        <div id="searchList"
+             class="max-h-96 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <div id="mainContent">
+      <div id="initialLoading"
+           class="text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <p class="mt-4 text-white/60">Puxando os filmes salvos...</p>
+      </div>
+
+
+      <div id="errorMessage"
+           class="text-center py-8 hidden">
+        <p class="text-red-400"></p>
+      </div>
+
+
+      <div id="moviesContainer"
+           class="hidden">
+        <h2 id="moviesTitle"
+            class="text-2xl font-semibold mb-6">All Movies</h2>
+        <div id="moviesGrid"
+             class="grid gap-6 md:grid-cols-3 lg:grid-cols-6"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class MovieSearchApp {
+      constructor() {
+        this.searchForm = document.getElementById('searchForm');
+        this.searchInput = document.getElementById('searchInput');
+        this.clearButton = document.getElementById('clearButton');
+        this.searchResults = document.getElementById('searchResults');
+        this.searchList = document.getElementById('searchList');
+        this.initialLoading = document.getElementById('initialLoading');
+        this.errorMessage = document.getElementById('errorMessage');
+        this.moviesContainer = document.getElementById('moviesContainer');
+        this.moviesTitle = document.getElementById('moviesTitle');
+        this.moviesGrid = document.getElementById('moviesGrid');
+
+        this.allMovies = [];
+        this.searchTimeout = null;
+
+        this.init();
+      }
+
+      init() {
+        this.searchInput.addEventListener('input', () => this.handleSearchInput());
+        this.clearButton.addEventListener('click', () => this.clearSearch());
+        this.loadAllMovies();
+      }
+
+      async loadAllMovies() {
+        try {
+          const response = await fetch('/api/all');
+
+          if (!response.ok) {
+            throw new Error('Failed to load movies');
+          }
+
+          const movies = await response.json();
+          this.allMovies = movies;
+          this.displayMainMovies(movies);
+        } catch (error) {
+          this.showError('Failed to load movies. Please refresh the page.');
+        } finally {
+          this.initialLoading.classList.add('hidden');
+        }
+      }
+
+      handleSearchInput() {
+        const query = this.searchInput.value.trim();
+
+        if (query) {
+          this.clearButton.classList.remove('hidden');
+        } else {
+          this.clearButton.classList.add('hidden');
+        }
+
+        if (this.searchTimeout) {
+          clearTimeout(this.searchTimeout);
+        }
+
+        // Isso aqui é um debounce.
+        // Serve pra não ficar spammando request a cada letra no input
+        this.searchTimeout = setTimeout(() => {
+          if (query) {
+            this.performSearch(query);
+          } else {
+            this.hideSearchResults();
+          }
+        }, 300);
+      }
+
+      async performSearch(query) {
+        try {
+          const response = await fetch(`api/search?q=${encodeURIComponent(query)}`);
+
+          if (!response.ok) {
+            throw new Error('Search failed');
+          }
+
+          const movies = await response.json();
+          this.displaySearchResults(movies);
+        } catch (error) {
+          console.error('Search error:', error);
+          this.hideSearchResults();
+        }
+      }
+
+      displaySearchResults(movies) {
+        this.searchList.innerHTML = '';
+
+        if (movies.length === 0) {
+          const noResults = document.createElement('div');
+          noResults.className = 'p-4 text-center text-white/60';
+          noResults.textContent = 'No movies found';
+          this.searchList.appendChild(noResults);
+        } else {
+          movies.forEach((movie, index) => {
+            const listItem = this.createSearchListItem(movie, index);
+            this.searchList.appendChild(listItem);
+          });
+        }
+
+        this.searchResults.classList.remove('hidden');
+      }
+
+      createSearchListItem(movie, index) {
+        const item = document.createElement('div');
+        item.className = 'flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-b-0';
+
+        const posterDiv = document.createElement('div');
+        posterDiv.className = 'w-12 h-16 bg-white/5 rounded overflow-hidden flex-shrink-0';
+
+        if (movie.cover) {
+          const img = document.createElement('img');
+          img.src = movie.cover;
+          img.alt = movie.name;
+          img.className = 'w-full h-full object-cover';
+          img.onerror = () => {
+            img.style.display = 'none';
+            this.addSmallFilmIcon(posterDiv);
+          };
+          posterDiv.appendChild(img);
+        } else {
+          this.addSmallFilmIcon(posterDiv);
+        }
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'flex-1 min-w-0';
+
+        const title = document.createElement('h4');
+        title.className = 'font-medium text-white truncate';
+        title.textContent = movie.name;
+
+        const id = document.createElement('p');
+        id.className = 'text-sm text-white/60';
+        id.textContent = `ID: ${movie.id}`;
+
+        infoDiv.appendChild(title);
+        infoDiv.appendChild(id);
+
+        const crossButton = document.createElement('button');
+        crossButton.className = 'flex-shrink-0 p-2 text-white/40 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors';
+        crossButton.innerHTML = `
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>  
+                  <line x1="5" y1="12" x2="19" y2="12"></line>  
+              </svg>
+                `;
+        crossButton.addEventListener('click', (e) => {
+          e.stopPropagation(); // Precisa disso porque é um link, né. Não quero ir pra outra página.
+          this.sendMovieToDatabase(movie);
+        });
+
+        item.appendChild(posterDiv);
+        item.appendChild(infoDiv);
+        item.appendChild(crossButton);
+
+        item.addEventListener('click', () => {
+          this.showMovieDetails(movie);
+        });
+
+        return item;
+      }
+
+      addSmallFilmIcon(container) {
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'flex items-center justify-center h-full';
+        iconDiv.innerHTML = `
+                    <svg class="h-6 w-6 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                `;
+        container.appendChild(iconDiv);
+      }
+
+      showMovieDetails(movie) {
+
+        this.clearSearch();
+
+        // Aqui eu ia fazer dar um scroll até o filme e tal
+        // Não sei se vai sair. Vai pra fila de coisas que tenho que implementar
+
+      }
+
+      clearSearch() {
+        this.searchInput.value = '';
+        this.clearButton.classList.add('hidden');
+        this.hideSearchResults();
+      }
+
+      hideSearchResults() {
+        this.searchResults.classList.add('hidden');
+      }
+
+      showError(message) {
+        this.errorMessage.querySelector('p').textContent = message;
+        this.errorMessage.classList.remove('hidden');
+        this.moviesContainer.classList.add('hidden');
+      }
+
+      displayMainMovies(movies) {
+        this.moviesTitle.textContent = `Salvos (${movies.length})`;
+        this.moviesGrid.innerHTML = '';
+
+        movies.forEach(movie => {
+          const movieCard = this.createMovieCard(movie);
+          this.moviesGrid.appendChild(movieCard);
+        });
+
+        this.moviesContainer.classList.remove('hidden');
+      }
+
+      createMovieCard(movie) {
+        const card = document.createElement('div');
+        card.className = 'bg-white/5 border border-white/10 rounded-lg p-6 hover:bg-white/10 transition-all duration-200';
+        card.dataset.movieId = movie.id;
+
+        const coverSection = this.createCoverSection(movie);
+        const infoSection = this.createInfoSection(movie);
+
+        card.appendChild(coverSection);
+        card.appendChild(infoSection);
+
+        return card;
+      }
+
+      createCoverSection(movie) {
+        const coverDiv = document.createElement('div');
+        coverDiv.className = 'aspect-[2/3] relative bg-white/5 rounded-lg overflow-hidden mb-4';
+
+        if (movie.cover) {
+          const img = document.createElement('img');
+          img.src = movie.cover;
+          img.alt = movie.name;
+          img.className = 'w-full h-full object-cover';
+          img.onerror = () => {
+            img.style.display = 'none';
+            this.addFilmIcon(coverDiv);
+          };
+          coverDiv.appendChild(img);
+        } else {
+          this.addFilmIcon(coverDiv);
+        }
+
+        return coverDiv;
+      }
+
+      addFilmIcon(container) {
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'flex items-center justify-center h-full';
+        iconDiv.innerHTML = `
+                    <svg class="h-12 w-12 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                `;
+        container.appendChild(iconDiv);
+      }
+
+      createInfoSection(movie) {
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'space-y-3';
+
+        const title = document.createElement('h3');
+        title.className = 'font-semibold text-lg line-clamp-2';
+        title.textContent = movie.name;
+
+        const description = document.createElement('p');
+        description.className = 'text-white/70 text-sm line-clamp-3';
+        description.textContent = movie.description;
+
+        const badgesDiv = document.createElement('div');
+        badgesDiv.className = 'flex flex-wrap gap-2';
+
+        if (movie.rating) {
+          const ratingBadge = this.createBadge('⭐', movie.rating, 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30');
+          badgesDiv.appendChild(ratingBadge);
+        }
+
+        if (movie.directors && movie.directors.length > 0) {
+          const directorsText = Array.isArray(movie.directors) ? movie.directors.join(', ') : movie.directors;
+          const directorBadge = this.createBadge('🎬', directorsText, 'bg-purple-500/20 text-purple-300 border-purple-500/30');
+          badgesDiv.appendChild(directorBadge);
+        }
+
+        const idDiv = document.createElement('div');
+        idDiv.className = 'text-xs text-white/40 pt-2 border-t border-white/10';
+        idDiv.textContent = `ID: ${movie.id}`;
+
+        infoDiv.appendChild(title);
+        infoDiv.appendChild(description);
+        infoDiv.appendChild(badgesDiv);
+        infoDiv.appendChild(idDiv);
+
+        return infoDiv;
+      }
+
+      createBadge(icon, text, className) {
+        const badge = document.createElement('span');
+        badge.className = `inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${className}`;
+        badge.innerHTML = `${icon} <span class="ml-1">${text}</span>`;
+        return badge;
+      }
+
+      async sendMovieToDatabase(movie) {
+        try {
+          this.showNotification('Scrapando do IMDB...', 'info');
+
+          const movieData = {
+            id: movie.id
+          };
+
+          if (!movie.id.startsWith("tt")) {
+            this.showNotification('Não é um filme!', 'error');
+            return;
+          }
+
+          const response = await fetch('http://localhost:8000/api/movie', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(movieData)
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            this.showNotification('Filme salvo com sucesso!', 'success');
+            this.moviesGrid.prepend(this.createMovieCard(result.movie)) // adiciona o filme novo no início da lista
+            this.moviesTitle.textContent = `Salvos (${this.allMovies.length + 1})`; // incrementa o contador
+          } else {
+            const errorMessage = result.message || 'Erro ao salvar o filme...';
+            this.showNotification(errorMessage, 'error');
+          }
+        } catch (error) {
+          console.log(error);
+
+          this.showNotification('Alguma coisa horrível aconteceu', 'error');
+        }
+      }
+
+      showNotification(message, type = 'info') {
+        const existingNotification = document.getElementById('notification');
+        if (existingNotification) {
+          existingNotification.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-0`;
+
+        let bgColor, textColor, borderColor;
+        switch (type) {
+          case 'success':
+            bgColor = 'bg-green-500/90';
+            textColor = 'text-white';
+            borderColor = 'border-green-400';
+            break;
+          case 'error':
+            bgColor = 'bg-red-500/90';
+            textColor = 'text-white';
+            borderColor = 'border-red-400';
+            break;
+          default:
+            bgColor = 'bg-blue-500/90';
+            textColor = 'text-white';
+            borderColor = 'border-blue-400';
+        }
+
+        notification.className += ` ${bgColor} ${textColor} border ${borderColor}`;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+          notification.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 300);
+        }, 3000);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      new MovieSearchApp();
+    });
+  </script>
+</body>
+
+</html>

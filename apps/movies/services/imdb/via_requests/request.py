@@ -32,5 +32,3 @@ class ImdbRequests():
     return ImdbRequests._parse_movie_data(response.json())
   
 
-
-print(ImdbRequests.search("spotless"))
