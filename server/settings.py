@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+from celery.schedules import crontab
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -37,8 +37,29 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_beat',
     'apps.movies.apps.MoviesConfig',
 ]
+
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+ALLOWED_HOSTS = ['*']
+CELERY_BEAT_SCHEDULE = {
+    'frequent-api-request': {
+        'task': 'apps.movies.tasks.make_api_request',
+        'schedule': 30.0,  # a cada 30 seg
+    },
+    'daily-api-request': {
+        'task': 'movies.tasks.daily_api_request',
+        'schedule': crontab(hour=10, minute=0),  # todo dia as 10
+    },
+}
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 MIDDLEWARE = [
     # 'django.middleware.security.SecurityMiddleware',
