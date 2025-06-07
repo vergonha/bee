@@ -13,3 +13,6 @@ def all(request):
 def create(request):
    if request.method == 'POST':
     return MovieController.create_movie(request)
+   
+def dataframe(request):
+   return MovieController.pd(request)

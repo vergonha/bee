@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
@@ -5,9 +6,14 @@ from bs4 import BeautifulSoup
 import requests
 from bs4 import BeautifulSoup
 
+
+import logging
+logger = logging.getLogger(__name__)
+
 class ImdbScraping():
     @staticmethod
     def get_movie(movie_id):
+        logger.info("Searching movie: " + movie_id)
         headers = {
             # Pode mandar tudo em inglês. Se esse header for em português, a descrição continua em inglês do mesmo jeito kkkk 
             "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
@@ -38,7 +44,7 @@ class ImdbScraping():
 
         date_tag = soup.find('a', class_='ipc-metadata-list-item__list-content-item')
 
-        return {
-            "description": description, "name": title, "cover": cover, "rating": rating, "release_date": release_date
-        }
+        data = { "description": description, "name": title, "cover": cover, "rating": rating, "release_date": release_date }
+        logger.info(json.dumps(data))
+        return data
     

@@ -27,6 +27,7 @@ class ImdbRequests():
     response = requests.get("https://v3.sg.media-imdb.com/suggestion/x/" + query + ".json")
     
     if(response.status_code != 200):
+      f'Search failed: ${query}, {response.text()}'
       return {}
 
     return ImdbRequests._parse_movie_data(response.json())

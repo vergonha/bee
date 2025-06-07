@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -69,6 +68,8 @@ TEMPLATES = [
     },
 ]
 
+
+
 WSGI_APPLICATION = 'server.wsgi.application'
 
 
@@ -85,6 +86,55 @@ DATABASES = {
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8000',
 ]
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_false": {
+            "()": "django.utils.log.RequireDebugFalse",
+        },
+    },
+    "formatters": {
+        "simple": {
+            "format": "{levelname} {asctime:s} {name} {message}",
+            "style": "{",
+        },
+        "verbose": {
+            "format": "{levelname} {asctime:s} {name} {module}.py (line {lineno:d}) {funcName} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console_debug_info": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file_warning_error": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "formatter": "verbose",
+            "filename": BASE_DIR / "apps/movies/logs/django.log",
+        },
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console_debug_info", "file_warning_error"],
+            "level": "DEBUG",
+        },
+        "django": {
+            "handlers": ["console_debug_info"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.template": {
+            "handlers": ["file_warning_error"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
 
 
 # Internationalization

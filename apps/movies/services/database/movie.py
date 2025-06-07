@@ -2,6 +2,10 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from ...models.movie import Movie
 
+
+import logging
+logger = logging.getLogger(__name__)
+
 class MovieService:
    @staticmethod
    def create_movie(data):
@@ -16,4 +20,5 @@ class MovieService:
             movie.save()
             return movie
         except ValidationError as e:
+            logger.warning(f"Movie creation failed: {e}")
             raise ValidationError(f"Movie creation failed: {e}")

@@ -8,5 +8,6 @@ urlpatterns  = [
     path('api/search', movie_view.search),
     path('api/movie', movie_view.create),
     path('api/all', movie_view.all),
+    path('api/df', movie_view.dataframe)
 ]
 
