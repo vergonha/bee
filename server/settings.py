@@ -77,7 +77,7 @@ ROOT_URLCONF = 'server.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'apps/templates'],
+        'DIRS': [BASE_DIR / 'apps/movies'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
